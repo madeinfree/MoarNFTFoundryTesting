@@ -29,29 +29,22 @@ contract MoarTest is DSTest {
     }
 
     function testOwnerBalanceIsOne() public {
-        uint256 slotBalance = stdstore
-            .target(address(moar))
-            .sig(moar.balanceOf.selector)
-            .with_key(moar.owner())
-            .find();
-        uint256 balanceFirstMint = uint256(
-            vm.load(address(moar), bytes32(slotBalance))
-        );
-        assertEq(balanceFirstMint, 1);
+        assertEq(moar.balanceOf(moar.owner()), 1);
     }
 
     /**
      * error InvalidSaleOn()
      */
-    function testFailWhiteListMintNotOnSale() public {
+    function testWhiteListMintInvalidSaleOnRevert() public {
+        vm.expectRevert(abi.encodeWithSelector(InvalidSaleOn.selector));
         moar.whitelistMint(0, 0, "1");
     }
 
     /**
      * error NonAdmin()
      */
-    function testFailWhiteListMintNonAdmin() public {
+    function testWhiteListMintNonAdmin() public {
+        vm.expectRevert(abi.encodeWithSelector(NonAdmin.selector));
         moar.toggleFlag(uint256(keccak256("SALE")));
-        moar.whitelistMint(0, 0, "1");
     }
 }
