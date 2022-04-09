@@ -9,6 +9,10 @@ import "../Moar.sol";
 interface CheatCodes {
     function prank(address) external;
 
+    function startPrank(address) external;
+
+    function stopPrank() external;
+
     function warp(uint256) external;
 }
 
@@ -27,7 +31,7 @@ contract MoarDutchAuctionTest is DSTest {
         address _msgSender = msg.sender;
         moar = new Moar(_authority, _admin, _msgSender);
 
-        cheats.prank(address(0x00a329c0648769A73afAc7F9381E08FB43dBEA72));
+        cheats.startPrank(address(0x00a329c0648769A73afAc7F9381E08FB43dBEA72));
 
         uint256[] memory tierIds = new uint256[](2);
         uint256[] memory tierStartTimes = new uint256[](2);
@@ -51,11 +55,29 @@ contract MoarDutchAuctionTest is DSTest {
             tierTicketPrices
         );
 
-        cheats.prank(address(0x00a329c0648769A73afAc7F9381E08FB43dBEA72));
-        moar.toggleFlag(uint256(keccak256("SALE")));
+        moar.toggleFlag(uint256(keccak256("SALE"))); // default Open SALE
+
+        cheats.stopPrank();
+
+        cheats.warp(1649335500 + 1);
     }
 
-    function testMDAInvalidTime() public {
+    function testMDAIsSaleOnRevert() public {
+        cheats.prank(address(0x00a329c0648769A73afAc7F9381E08FB43dBEA72));
+        moar.toggleFlag(uint256(keccak256("SALE"))); // close SALE
+
+        vm.expectRevert(abi.encodeWithSelector(InvalidSaleOn.selector));
+
+        cheats.prank(tx.origin);
+        moar.dutchAuctionMint(
+            0,
+            bytes(
+                hex"c9de4848636b15740e6261ff43b6549764995f15938b1759a6ea87fedd8a35443061f2b8865ab27ab9e66ec5419616400c19cc039d15d1cf36f636c4c704ece71c"
+            )
+        );
+    }
+
+    function testMDAInvalidTimeRevert() public {
         vm.expectRevert(abi.encodeWithSelector(InvalidTime.selector));
 
         cheats.warp(1649335500 - 1);
@@ -69,7 +91,7 @@ contract MoarDutchAuctionTest is DSTest {
         );
     }
 
-    function testMDAInvalidSignature() public {
+    function testMDAInvalidSignatureRevert() public {
         vm.expectRevert(abi.encodeWithSelector(InvalidSignature.selector));
 
         cheats.warp(1649335500);
@@ -83,7 +105,7 @@ contract MoarDutchAuctionTest is DSTest {
         );
     }
 
-    function testMDAExceedAuctionSupplyFromZeroBuy() public {
+    function testMDAExceedAuctionSupplyFromZeroBuyRevert() public {
         vm.expectRevert(abi.encodeWithSelector(ExceedAuctionSupply.selector));
 
         cheats.warp(1649335500);
@@ -97,7 +119,7 @@ contract MoarDutchAuctionTest is DSTest {
         );
     }
 
-    function testMDAExceedAuctionSupplyFromDHDATotalSupply() public {
+    function testMDAExceedAuctionSupplyFromDHDATotalSupplyRevert() public {
         uint256 slot = stdstore
             .target(address(moar))
             .sig("DHDATotalSupply()")
@@ -119,13 +141,13 @@ contract MoarDutchAuctionTest is DSTest {
         );
     }
 
-    function testMDAInvalidPayment() public {
+    function testMDAInvalidPaymentRevert() public {
         vm.expectRevert(abi.encodeWithSelector(InvalidPayment.selector));
 
         cheats.warp(1649335500);
         cheats.prank(tx.origin);
 
-        moar.dutchAuctionMint(
+        moar.dutchAuctionMint{value: 0 ether}(
             1,
             bytes(
                 hex"c9de4848636b15740e6261ff43b6549764995f15938b1759a6ea87fedd8a35443061f2b8865ab27ab9e66ec5419616400c19cc039d15d1cf36f636c4c704ece71c"
@@ -154,6 +176,8 @@ contract MoarDutchAuctionTest is DSTest {
                 hex"c9de4848636b15740e6261ff43b6549764995f15938b1759a6ea87fedd8a35443061f2b8865ab27ab9e66ec5419616400c19cc039d15d1cf36f636c4c704ece71c"
             )
         );
+
+        assertEq(moar.balanceOf(address(tx.origin)), 1);
     }
 
     function testMDAMintNextStep() public {
@@ -166,6 +190,8 @@ contract MoarDutchAuctionTest is DSTest {
                 hex"c9de4848636b15740e6261ff43b6549764995f15938b1759a6ea87fedd8a35443061f2b8865ab27ab9e66ec5419616400c19cc039d15d1cf36f636c4c704ece71c"
             )
         );
+
+        assertEq(moar.balanceOf(address(tx.origin)), 1);
     }
 
     function testMDAMintNextNextStep() public {
@@ -178,6 +204,8 @@ contract MoarDutchAuctionTest is DSTest {
                 hex"c9de4848636b15740e6261ff43b6549764995f15938b1759a6ea87fedd8a35443061f2b8865ab27ab9e66ec5419616400c19cc039d15d1cf36f636c4c704ece71c"
             )
         );
+
+        assertEq(moar.balanceOf(address(tx.origin)), 1);
     }
 
     function testMDAMintEndStep() public {
@@ -190,5 +218,7 @@ contract MoarDutchAuctionTest is DSTest {
                 hex"c9de4848636b15740e6261ff43b6549764995f15938b1759a6ea87fedd8a35443061f2b8865ab27ab9e66ec5419616400c19cc039d15d1cf36f636c4c704ece71c"
             )
         );
+
+        assertEq(moar.balanceOf(address(tx.origin)), 1);
     }
 }
