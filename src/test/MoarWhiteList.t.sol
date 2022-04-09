@@ -9,6 +9,10 @@ import "../Moar.sol";
 interface CheatCodes {
     function prank(address) external;
 
+    function startPrank(address) external;
+
+    function stopPrank() external;
+
     function warp(uint256) external;
 }
 
@@ -27,7 +31,7 @@ contract MoarWhiteListTest is DSTest {
         address _msgSender = msg.sender;
         moar = new Moar(_authority, _admin, _msgSender);
 
-        cheats.prank(address(0x00a329c0648769A73afAc7F9381E08FB43dBEA72));
+        cheats.startPrank(address(0x00a329c0648769A73afAc7F9381E08FB43dBEA72));
 
         uint256[] memory tierIds = new uint256[](1);
         uint256[] memory tierStartTimes = new uint256[](1);
@@ -37,7 +41,7 @@ contract MoarWhiteListTest is DSTest {
 
         for (uint256 i; i < 1; i++) {
             tierIds[i] = 0;
-            tierStartTimes[i] = block.timestamp;
+            tierStartTimes[i] = 5; // start at 5 seconds
             tierDurations[i] = 62400;
             tierMaxTicketNums[i] = 1;
             tierTicketPrices[i] = 0.5 ether;
@@ -51,18 +55,21 @@ contract MoarWhiteListTest is DSTest {
             tierTicketPrices
         );
 
-        cheats.prank(address(0x00a329c0648769A73afAc7F9381E08FB43dBEA72));
-        cheats.warp(block.timestamp + 1 seconds);
+        cheats.warp(6); // next 6 seconds
         moar.toggleFlag(uint256(keccak256("SALE")));
+
+        cheats.stopPrank();
     }
 
-    function testFailWhiteListMintInvalidTime() public {
+    function testWhiteListMintInvalidTimeRevert() public {
+        vm.expectRevert(abi.encodeWithSelector(InvalidTime.selector));
         cheats.prank(address(0x00a329c0648769A73afAc7F9381E08FB43dBEA72));
-        cheats.warp(1649314659);
+        cheats.warp(3); // back to 3 seconds
         moar.whitelistMint(0, 0, "1");
     }
 
-    function testFailWhiteListMintInvalidSignature() public {
+    function testWhiteListMintInvalidSignature() public {
+        vm.expectRevert(abi.encodeWithSelector(InvalidSignature.selector));
         moar.whitelistMint{value: 0.5 ether}(
             0,
             1,
@@ -72,7 +79,8 @@ contract MoarWhiteListTest is DSTest {
         );
     }
 
-    function testFailWhiteListMintInvalidPayment() public {
+    function testWhiteListMintInvalidPayment() public {
+        vm.expectRevert(abi.encodeWithSelector(InvalidPayment.selector));
         moar.whitelistMint{value: 0 ether}(
             0,
             1,
