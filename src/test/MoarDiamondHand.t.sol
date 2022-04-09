@@ -111,7 +111,7 @@ contract MoarDutchAuctionTest is DSTest {
         );
     }
 
-    function testDHDAExceedDiamondHandSupplyRevert() public {
+    function testDHDAExceedDiamondHandSupplyZeroMintRevert() public {
         vm.expectRevert(
             abi.encodeWithSelector(ExceedDiamondHandSupply.selector)
         );
@@ -120,6 +120,29 @@ contract MoarDutchAuctionTest is DSTest {
         cheats.prank(tx.origin);
         moar.diamondHandMint(
             0,
+            bytes(
+                hex"9dce314f037f0f750cda11662d857bd2c2aa5128e1d59b7fc83832e3633b87125cb03461f35fa09c651e78cbfa3d308ce56ad23452561963128e4e0cdd40c7371b"
+            )
+        );
+    }
+
+    function testDHDAExceedDiamondHandSupplyRevert() public {
+        uint256 slot = stdstore
+            .target(address(moar))
+            .sig("DHDATotalSupply()")
+            .find();
+        bytes32 loc = bytes32(slot);
+        bytes32 mockedDiamondHandMaxSupply = bytes32(abi.encode(1644));
+        vm.store(address(moar), loc, mockedDiamondHandMaxSupply);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(ExceedDiamondHandSupply.selector)
+        );
+
+        cheats.warp(1649335500);
+        cheats.prank(tx.origin);
+        moar.diamondHandMint(
+            1,
             bytes(
                 hex"9dce314f037f0f750cda11662d857bd2c2aa5128e1d59b7fc83832e3633b87125cb03461f35fa09c651e78cbfa3d308ce56ad23452561963128e4e0cdd40c7371b"
             )
