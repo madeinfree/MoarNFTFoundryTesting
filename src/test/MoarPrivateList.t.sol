@@ -9,6 +9,10 @@ import "../Moar.sol";
 interface CheatCodes {
     function prank(address) external;
 
+    function startPrank(address) external;
+
+    function stopPrank() external;
+
     function warp(uint256) external;
 }
 
@@ -28,26 +32,27 @@ contract MoarWhiteListTest is DSTest {
         moar = new Moar(_authority, _admin, _msgSender);
     }
 
-    function testFailMintNotAdmin() public {
-        cheats.prank(address(0x00a329c0648769A73afAc7F9381E08FB43dBEA72));
-        moar.toggleFlag(uint256(keccak256("SALE")));
-
+    function testPrivateMintNonAdminRevert() public {
+        vm.expectRevert(abi.encodeWithSelector(NonAdmin.selector));
         cheats.prank(address(0x1337));
         address[] memory ads = new address[](1);
         ads[0] = address(this);
         moar.privateMint(ads);
     }
 
-    function testFailMintIsSaleOn() public {
-        cheats.prank(address(0x00a329c0648769A73afAc7F9381E08FB43dBEA72));
+    function testPrivateMintInvalidSaleOnRevert() public {
+        cheats.startPrank(address(0x00a329c0648769A73afAc7F9381E08FB43dBEA72));
         moar.toggleFlag(uint256(keccak256("SALE")));
 
+        vm.expectRevert(abi.encodeWithSelector(InvalidSaleOn.selector));
         address[] memory ads = new address[](1);
         ads[0] = address(this);
         moar.privateMint(ads);
+
+        cheats.stopPrank();
     }
 
-    function testFailMintExceedMaxSuply() public {
+    function testPrivateMintExceedMaxSupplyRevert() public {
         uint256 slot = stdstore
             .target(address(moar))
             .sig("totalSupply()")
@@ -57,14 +62,13 @@ contract MoarWhiteListTest is DSTest {
         vm.store(address(moar), loc, mockedMaxSupply);
 
         cheats.prank(address(0x00a329c0648769A73afAc7F9381E08FB43dBEA72));
+        vm.expectRevert(abi.encodeWithSelector(ExceedMaxSupply.selector));
         address[] memory ads = new address[](1);
         ads[0] = address(1);
         moar.privateMint(ads);
-
-        assertEq(moar.balanceOf(address(1)), 1);
     }
 
-    function testMint() public {
+    function testPrivateMint() public {
         cheats.prank(address(0x00a329c0648769A73afAc7F9381E08FB43dBEA72));
         address[] memory ads = new address[](1);
         ads[0] = address(1);
